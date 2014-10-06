@@ -41,7 +41,7 @@ sbt runMain project1 numNodes topology algorithm
 Note
 ----------------------------------------------------------------------------
 
-Please refer to excel sheet in the project root folder for our test results and the number of bitcoins mined for various inputs
+Please refer to excel sheet in the project root folder for our test results and the number of rounds required to converge for various inputs
 
 Details:
 ----------------------------------------------------------------------------
