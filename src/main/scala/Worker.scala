@@ -19,6 +19,8 @@ object Worker {
   case class doGossiping(msg: String)
   case class removeNode(act: ActorRef)
   case class startPushSumCalculation()
+  case class sendCalculation()
+  case class receiveCalculation(sum: Double, weight: Double)
   /*
   def props(neighbourList: ArrayBuffer[ActorRef]):Props =
     Props(classOf[Worker], neighbourList)
@@ -37,12 +39,22 @@ class Worker(ac: ActorSystem, superBoss: ActorRef) extends Actor {
 
     override def cancel(): Boolean = false
   }
+
+  var cancellable2:Cancellable = new Cancellable {override def isCancelled: Boolean = false
+
+    override def cancel(): Boolean = false
+  }
+
+  var currentSum: Double = self.path.name.toDouble
+  var currentWeight: Double = 1
   var gossipHearCount = 0
   var gossipStartCount: Int = 0
+  var pushSumStartCount: Int = 0
   val root = ConfigFactory.load()
   val one  = root.getConfig("worker")
   var gossipTerminationLimit = one.getString("termination.gossipTermination").toInt
-
+  var currentRound: Int = 0
+  var ratioPrev: Double = 0
   /*Added by Anirudh Subramanian End*/
 
   def receive = {
@@ -56,9 +68,9 @@ on begin*/
     case hearGossiping(msg: String) => hearGossip(msg)
     case doGossiping(msg: String)   => doGossip(msg)
     case removeNode(act: ActorRef) => removeNode(act)
-    //case startPushSumCalculation() => startPushSum()
-    //case sendCalculation(sum: Int, weight: Int) => sendCalculation(sum, weight)
-    //case receiveCalculation(sum: Int, weight: Int) => receiveCalculation(sum, weight)
+    case startPushSumCalculation() => startPushSum()
+    case sendCalculation() => sendCalculations()
+    case receiveCalculation(sum: Double, weight: Double) => receiveCalculations(sum, weight)
     case "tp" => println("this called")
   }
 
@@ -68,6 +80,61 @@ on begin*/
     //visitedNeighboursList -= act.path.name.toInt
   }
   */
+  /*Push sum methods*/
+
+
+  private def startPushSum(): Unit = {
+    import ac.dispatcher
+    pushSumStartCount += 1
+    if(currentRound == 0) {
+      currentRound += 1
+      ratioPrev = currentSum / currentWeight
+    }
+    cancellable2 = ac.scheduler.schedule(0 milliseconds, 1 milliseconds, self, sendCalculation())
+  }
+
+  private def receiveCalculations(sum: Double, weight: Double): Unit = {
+    println("Inside receive calculations for " + self.path.name)
+    currentRound += 1
+    var doesConverge:Boolean = false
+    if(currentRound == 3) {
+      currentRound = 0
+
+      var currentRatio: Double = currentSum / currentWeight
+      var diff: Double = currentRatio - ratioPrev
+      if (scala.math.abs(diff) <= 0.0000000001) {
+          doesConverge = true
+      }
+      println("=================================================")
+      println("diff is " + diff)
+      println("does converge is " + doesConverge)
+      println("=================================================")
+      ratioPrev = currentRatio
+    }
+    if(pushSumStartCount == 0){
+      pushSumStartCount += 1
+      self ! startPushSum()
+    } else {
+      if(doesConverge) {
+        cancellable2.cancel()
+        superBoss ! pushSumDone(self.path.name, currentSum/currentWeight)
+        println("Kill yourself")
+        self ! PoisonPill
+      } else {
+        currentSum = sum + currentSum
+        currentWeight = weight + currentWeight
+      }
+    }
+  }
+
+  private def sendCalculations(): Unit = {
+    currentSum = currentSum / 2
+    currentWeight = currentWeight / 2
+    var rnd = new scala.util.Random()
+    var x = rnd.nextInt(neighboursList.size)
+    //println("Sending gossip to " + neighboursList(x).path.name)
+    neighboursList(x) ! receiveCalculation(currentSum, currentWeight)
+  }
 
   /*Gossip methods*/
   private def hearGossip(msg: String): Unit = {

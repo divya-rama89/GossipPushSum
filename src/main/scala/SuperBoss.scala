@@ -15,6 +15,7 @@ case class setupNodes(numberNodes: Int, msg: String, top:String, algorithm: Stri
 case class printTopologyNeighbours(neigboursList: ArrayBuffer[ActorRef])
 case class executeAlgo(algorithm: String)
 case class gossipHeard(gossiper: String)
+case class pushSumDone(gossiper: String, ratio: Double)
 case class countNodes(gossiper: String)
 
 
@@ -36,6 +37,7 @@ class SuperBoss(numberNodes: Int, ac: ActorSystem) extends Actor {
     case executeAlgo(algorithm: String) => executeAlgo(algorithm: String)
     case gossipHeard(gossiper: String) => recordGossipingNode(sender, gossiper)
     case countNodes(gossiper: String) => countNodes(gossiper)
+    case pushSumDone(gossiper: String, ratio: Double) => pushSumDone(gossiper, ratio)
     case "STOP" => println("hi"); //shutDownBoss()
   }
 
@@ -51,6 +53,15 @@ class SuperBoss(numberNodes: Int, ac: ActorSystem) extends Actor {
 
       }
     }
+
+    private def pushSumDone(gossiper: String, ratio: Double): Unit = {
+      println("Pushsum submitted by " + gossiper)
+      println("Pushsum converged")
+      println("Convergence time is  blah blah")
+      println("Converged ratio is " + ratio)
+      context.stop(self)
+    }
+
 
     private def recordGossipingNode(senderWorker: ActorRef, gossiper: String): Unit = {
       /*
@@ -82,7 +93,7 @@ class SuperBoss(numberNodes: Int, ac: ActorSystem) extends Actor {
         }
 
         case "push-sum" => {
-
+          actorsList(0) ! startPushSumCalculation()
         }
 
         case default => println("Invalid algo:"+default)
