@@ -15,6 +15,7 @@ case class setupNodes(numberNodes: Int, msg: String, top:String, algorithm: Stri
 case class printTopologyNeighbours(neigboursList: ArrayBuffer[ActorRef])
 case class executeAlgo(algorithm: String)
 case class gossipHeard(gossiper: String)
+case class countNodes(gossiper: String)
 
 
 object SuperBoss {
@@ -34,23 +35,37 @@ class SuperBoss(numberNodes: Int, ac: ActorSystem) extends Actor {
     case printTopologyNeighbours(neighboursList: ArrayBuffer[ActorRef]) => printTopologyNeighbours(sender, neighboursList)
     case executeAlgo(algorithm: String) => executeAlgo(algorithm: String)
     case gossipHeard(gossiper: String) => recordGossipingNode(sender, gossiper)
+    case countNodes(gossiper: String) => countNodes(gossiper)
     case "STOP" => println("hi"); //shutDownBoss()
   }
 
-    private def recordGossipingNode(senderWorker: ActorRef, gossiper: String): Unit = {
-
+    private def countNodes(gossiper: String): Unit = {
       if(!gossipersCompleted.contains(gossiper.toInt)) {
         println("Gossip heard by " + gossiper)
         gossipersCompleted += gossiper.toInt
       }
+      if(gossipersCompleted.size == numberNodes) {
+        println("===============================================")
+        println("Gossip Completed Once for all Nodes")
+        println("===============================================")
 
+      }
+    }
+
+    private def recordGossipingNode(senderWorker: ActorRef, gossiper: String): Unit = {
+      /*
+      if(!gossipersCompleted.contains(gossiper.toInt)) {
+        println("Gossip heard by " + gossiper)
+        gossipersCompleted += gossiper.toInt
+      }
+      */
       //gossipersCompleted += gossiper.toInt
       println("Gossip heard by " + gossiper)
-      if (gossipersCompleted.size >= numberNodes - 1) {
-        println("Gossip heard by all")
-        println("Convergence time is blah blah")
-        context.stop(self)
-      }
+      //if (gossipersCompleted.size >= numberNodes - 1) {
+      println("Gossip heard by all")
+      println("Convergence time is blah blah")
+      context.stop(self)
+      //}
     }
 
     override def postStop() = {

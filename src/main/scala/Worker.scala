@@ -18,6 +18,7 @@ object Worker {
   case class hearGossiping(msg: String)
   case class doGossiping(msg: String)
   case class removeNode(act: ActorRef)
+  case class startPushSumCalculation()
   /*
   def props(neighbourList: ArrayBuffer[ActorRef]):Props =
     Props(classOf[Worker], neighbourList)
@@ -30,7 +31,7 @@ class Worker(ac: ActorSystem, superBoss: ActorRef) extends Actor {
 
   /*Added by Anirudh Subramanian Begin*/
   var neighboursList: ArrayBuffer[ActorRef] = new ArrayBuffer[ActorRef]
-  var visitedNeighboursList: ArrayBuffer[Int] = new ArrayBuffer[Int]
+  //var visitedNeighboursList: ArrayBuffer[Int] = new ArrayBuffer[Int]
   var calledFirstTime: Boolean = true
   var cancellable:Cancellable = new Cancellable {override def isCancelled: Boolean = false
 
@@ -55,31 +56,37 @@ on begin*/
     case hearGossiping(msg: String) => hearGossip(msg)
     case doGossiping(msg: String)   => doGossip(msg)
     case removeNode(act: ActorRef) => removeNode(act)
+    //case startPushSumCalculation() => startPushSum()
+    //case sendCalculation(sum: Int, weight: Int) => sendCalculation(sum, weight)
+    //case receiveCalculation(sum: Int, weight: Int) => receiveCalculation(sum, weight)
     case "tp" => println("this called")
   }
 
+  /*
   private def removeNode(act: ActorRef): Unit = {
     neighboursList -= act
-    visitedNeighboursList -= act.path.name.toInt
+    //visitedNeighboursList -= act.path.name.toInt
   }
+  */
 
+  /*Gossip methods*/
   private def hearGossip(msg: String): Unit = {
+    println("Inside gossip for " + self.path.name)
+    superBoss ! countNodes(self.path.name)
     if(gossipStartCount == 0) {
       gossipStartCount += 1
       self ! startGossip(msg)
 
     } else {
-      if ((gossipHearCount >= gossipTerminationLimit) && (visitedNeighboursList.size == neighboursList.size) ) {
+      if ((gossipHearCount >= gossipTerminationLimit) ) {
         //println("Termination limit reached")
         //println("Cancel scheduling")
         //if(self.path.name.toInt != 0) {
 
         //}
         println("Inform super boss")
-        for(i <- 0 to neighboursList.size - 1) {
-          neighboursList(i) ! removeNode(self)
-        }
         cancellable.cancel()
+        gossipStartCount = 0
         println("name is " + self.path.name)
         superBoss ! gossipHeard(self.path.name)
         println("Kill yourself")
@@ -87,9 +94,10 @@ on begin*/
       } else {
         //println("Inside receive of :: " + self.path.name)
         //println("Gossip is " + msg)
+        //superBoss ! gossipHeard(self.path.name)
         println("still gossiping name is " + self.path.name)
         gossipHearCount = gossipHearCount + 1
-        self ! doGossiping(msg)
+        //self ! doGossiping(msg)
       }
     }
   }
@@ -104,9 +112,6 @@ on begin*/
   private def doGossip(msg: String): Unit = {
     var rnd = new scala.util.Random()
     var x = rnd.nextInt(neighboursList.size)
-    if(!visitedNeighboursList.contains(x)) {
-      visitedNeighboursList += x
-    }
     //println("Sending gossip to " + neighboursList(x).path.name)
     neighboursList(x) ! hearGossiping(msg)
   }
